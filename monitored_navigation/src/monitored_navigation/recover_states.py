@@ -49,7 +49,7 @@ class RecoverNavBacktrack(smach.State):
             
             try:
                 previous_position = rospy.ServiceProxy('previous_position', PreviousPosition)
-                meter_back = previous_position(1.0)
+                meter_back = previous_position(1.5)
             except rospy.ServiceException, e:
                 rospy.logwarn("Couldn't get previous position service, returning failure.")
                 return 'failure'
@@ -65,14 +65,14 @@ class RecoverNavBacktrack(smach.State):
                 
             print "Managed to republish pointcloud."
                       
-            params = { 'max_vel_x' : -0.1, 'min_vel_x' : -0.9 }
+            params = { 'max_vel_x' : -0.1, 'min_vel_x' : -0.4 }
             config = self.move_base_reconfig_client.update_configuration(params)
             
             ptu_goal = PtuGotoGoal();
-            ptu_goal.pan = -179
-            ptu_goal.tilt = 50
-            ptu_goal.pan_vel = 1
-            ptu_goal.tilt_vel = 1
+            ptu_goal.pan = 159
+            ptu_goal.tilt = 29
+            ptu_goal.pan_vel = 20
+            ptu_goal.tilt_vel = 20
             self.ptu_action_client.send_goal(ptu_goal)
             self.ptu_action_client.wait_for_result()
             
@@ -93,29 +93,29 @@ class RecoverNavBacktrack(smach.State):
                 self.service_preempt()
                 return 'preempted'
             
-            params = { 'max_vel_x' : 0.9, 'min_vel_x' : 0.1 }
+            params = { 'max_vel_x' : 0.95, 'min_vel_x' : 0.1 }
             config = self.move_base_reconfig_client.update_configuration(params)
-            
-            ptu_goal = PtuGotoGoal();
-            ptu_goal.pan = 0
-            ptu_goal.tilt = 0
-            ptu_goal.pan_vel = 1
-            ptu_goal.tilt_vel = 1
-            self.ptu_action_client.send_goal(ptu_goal)
-            self.ptu_action_client.wait_for_result()
-            
-            if self.preempt_requested():
-                self.service_preempt()
-                return 'preempted'
-            
+
             try:
                 republish_pointcloud = rospy.ServiceProxy('republish_pointcloud', RepublishPointcloud)
                 republish_pointcloud(False, '', '', 0.0)
             except rospy.ServiceException, e:
                 rospy.logwarn("Couldn't stop republish pointcloud service, returning failure.")
                 return 'failure'
-                
+            
+            ptu_goal = PtuGotoGoal();
+            ptu_goal.pan = 0
+            ptu_goal.tilt = 0
+            ptu_goal.pan_vel = 20
+            ptu_goal.tilt_vel = 20
+            self.ptu_action_client.send_goal(ptu_goal)
+            self.ptu_action_client.wait_for_result()
+
             print "Reset PTU, move_base parameters and stopped republishing pointcloud."
+            
+            if self.preempt_requested():
+                self.service_preempt()
+                return 'preempted'
                 
             if self.move_base_action_client.get_state() != GoalStatus.SUCCEEDED: #set the previous goal again
                 return 'failure'
