@@ -49,7 +49,7 @@ class RecoverNavBacktrack(smach.State):
             
             try:
                 previous_position = rospy.ServiceProxy('previous_position', PreviousPosition)
-                meter_back = previous_position(1.5)
+                meter_back = previous_position(1.0)
             except rospy.ServiceException, e:
                 rospy.logwarn("Couldn't get previous position service, returning failure.")
                 return 'failure'
@@ -65,7 +65,7 @@ class RecoverNavBacktrack(smach.State):
                 
             print "Managed to republish pointcloud."
                       
-            params = { 'max_vel_x' : -0.1, 'min_vel_x' : -0.4 }
+            params = { 'max_vel_x' : -0.1, 'min_vel_x' : -0.2 }
             config = self.move_base_reconfig_client.update_configuration(params)
             
             ptu_goal = PtuGotoGoal();
