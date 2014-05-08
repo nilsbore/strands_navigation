@@ -135,7 +135,7 @@ class RecoverLookAround(smach.State):
             self.ptu_action_client.send_goal(ptu_goal)
             #self.ptu_action_client.wait_for_result()
 
-            return 'succeded'
+            return 'succeeded'
         else:
             return 'failure'
         
