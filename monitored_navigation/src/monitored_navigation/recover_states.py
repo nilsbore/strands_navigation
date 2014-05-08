@@ -116,7 +116,6 @@ class RecoverNavBacktrack(smach.State):
             while status == GoalStatus.PENDING or status == GoalStatus.ACTIVE:   
                 status = self.move_base_action_client.get_state()
                 if self.preempt_requested():
-                    self.move_base_action_client.cancel_goal()
                     self.service_preempt()
                     self.stop_republish()
                     return 'preempted'
@@ -164,6 +163,7 @@ class RecoverNavBacktrack(smach.State):
 
     def service_preempt(self):
         #check if preemption is working
+        self.move_base_action_client.cancel_all_goals()
         smach.State.service_preempt(self)
 
 
