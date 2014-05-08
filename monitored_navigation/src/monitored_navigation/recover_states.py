@@ -65,6 +65,8 @@ class RecoverNavBacktrack(smach.State):
                 
             print "Managed to republish pointcloud."
                       
+            max_vel_x = rospy.get_param("/move_base/DWAPlannerROS/max_vel_x")
+            min_vel_x = rospy.get_param("/move_base/DWAPlannerROS/min_vel_x")
             params = { 'max_vel_x' : -0.1, 'min_vel_x' : -0.2 }
             config = self.move_base_reconfig_client.update_configuration(params)
             
@@ -93,7 +95,7 @@ class RecoverNavBacktrack(smach.State):
                 self.service_preempt()
                 return 'preempted'
             
-            params = { 'max_vel_x' : 0.95, 'min_vel_x' : 0.1 }
+            params = { 'max_vel_x' : max_vel_x, 'min_vel_x' : min_vel_x }
             config = self.move_base_reconfig_client.update_configuration(params)
 
             try:
