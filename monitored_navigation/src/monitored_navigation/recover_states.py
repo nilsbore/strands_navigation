@@ -182,6 +182,19 @@ class RecoverNavBacktrack(smach.State):
             rospy.logwarn("Couldn't get republish pointcloud service, returning failure.")
             return False
         return True
+
+    def reset_ptu(self):
+        ptu_goal = PtuGotoGoal();
+        ptu_goal.pan = 0
+        ptu_goal.tilt = 0
+        ptu_goal.pan_vel = 20
+        ptu_goal.tilt_vel = 20
+        self.ptu_action_client.send_goal(ptu_goal)
+        #self.ptu_action_client.wait_for_result()
+
+    def reset_move_base_pars(self):
+        params = { 'max_vel_x' : self.max_vel_x, 'min_vel_x' : self.min_vel_x }
+        config = self.move_base_reconfig_client.update_configuration(params)
                                                   
     def execute(self, userdata):
 
@@ -199,7 +212,7 @@ class RecoverNavBacktrack(smach.State):
             print "Got the previous position: ", meter_back.previous_pose.pose.position.x, ", ", meter_back.previous_pose.pose.position.y, ", ",  meter_back.previous_pose.pose.position.z
             
             ptu_goal = PtuGotoGoal();
-            ptu_goal.pan = 159
+            ptu_goal.pan = 177
             ptu_goal.tilt = 29
             ptu_goal.pan_vel = 20
             ptu_goal.tilt_vel = 20
@@ -215,8 +228,8 @@ class RecoverNavBacktrack(smach.State):
                 
             print "Managed to republish pointcloud."
             
-            max_vel_x = rospy.get_param("/move_base/DWAPlannerROS/max_vel_x")
-            min_vel_x = rospy.get_param("/move_base/DWAPlannerROS/min_vel_x")
+            self.max_vel_x = rospy.get_param("/move_base/DWAPlannerROS/max_vel_x")
+            self.min_vel_x = rospy.get_param("/move_base/DWAPlannerROS/min_vel_x")
             params = { 'max_vel_x' : -0.1, 'min_vel_x' : -0.2 }
             config = self.move_base_reconfig_client.update_configuration(params)
             
@@ -233,28 +246,23 @@ class RecoverNavBacktrack(smach.State):
                 if self.preempt_requested():
                     self.service_preempt()
                     self.stop_republish()
+                    self.reset_move_base_pars()
+                    self.reset_ptu()
                     return 'preempted'
                 self.move_base_action_client.wait_for_result(rospy.Duration(0.2))
             #self.move_base_action_client.wait_for_result()
+            
+            self.reset_move_base_pars()
             
             if self.preempt_requested():
                 self.service_preempt()
                 self.stop_republish()
                 return 'preempted'
-            
-            params = { 'max_vel_x' : max_vel_x, 'min_vel_x' : min_vel_x }
-            config = self.move_base_reconfig_client.update_configuration(params)
 
             if self.stop_republish() == False:
                 return 'failure'
             
-            ptu_goal = PtuGotoGoal();
-            ptu_goal.pan = 0
-            ptu_goal.tilt = 0
-            ptu_goal.pan_vel = 20
-            ptu_goal.tilt_vel = 20
-            self.ptu_action_client.send_goal(ptu_goal)
-            #self.ptu_action_client.wait_for_result()
+            self.reset_ptu()
 
             print "Reset PTU, move_base parameters and stopped republishing pointcloud."
             
