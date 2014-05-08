@@ -29,6 +29,121 @@ from strands_navigation_msgs.srv import AskHelp, AskHelpRequest
 # detected. There is a recovery behaviour for move_base and another for when the
 # bumper is pressed
 
+class RecoverLookAround(smach.State):
+    def __init__(self):
+        smach.State.__init__(self,
+                             outcomes=['succeeded', 'failure', 'preempted'],
+                             input_keys=['goal','n_nav_fails'],
+                             output_keys=['goal','n_nav_fails'],
+                             )
+
+        self.ptu_action_client = actionlib.SimpleActionClient('/SetPTUState', PtuGotoAction)
+    
+    def stop_republish(self):
+        try:
+            republish_pointcloud = rospy.ServiceProxy('republish_pointcloud', RepublishPointcloud)
+            republish_pointcloud(False, '', '', 0.0)
+        except rospy.ServiceException, e:
+            rospy.logwarn("Couldn't stop republish pointcloud service, returning failure.")
+            return False
+        return True
+    
+    def start_republish(self):
+        try:
+            republish_pointcloud = rospy.ServiceProxy('republish_pointcloud', RepublishPointcloud)
+            republish_pointcloud(True, '/head_xtion/depth/points', '/move_base/head_subsampled', 0.05)
+        except rospy.ServiceException, e:
+            rospy.logwarn("Couldn't get republish pointcloud service, returning failure.")
+            return False
+        return True
+                                                  
+    def execute(self, userdata):
+
+        print "Failures: ", userdata.n_nav_fails
+        if userdata.n_nav_fails < 2:
+            # do a pan-tilt sweep around the robot to clear obstacles
+                     
+            ptu_goal = PtuGotoGoal();
+            ptu_goal.pan = -70
+            ptu_goal.tilt = 29
+            ptu_goal.pan_vel = 20
+            ptu_goal.tilt_vel = 20
+            self.ptu_action_client.cancel_all_goals()
+            self.ptu_action_client.send_goal(ptu_goal)
+            self.ptu_action_client.wait_for_result()
+            
+            if self.preempt_requested():
+                self.service_preempt()
+                return 'preempted'
+                
+            if self.start_republish() == False:
+                return 'failure'
+            
+            rospy.loginfo("Taking a first look to the left.")
+            rospy.sleep(1.0)
+
+            if self.stop_republish() == False:
+                return 'failure'
+            
+            ptu_goal = PtuGotoGoal();
+            ptu_goal.pan = 70
+            ptu_goal.tilt = 29
+            ptu_goal.pan_vel = 20
+            ptu_goal.tilt_vel = 20
+            self.ptu_action_client.send_goal(ptu_goal)
+            self.ptu_action_client.wait_for_result()
+            
+            if self.preempt_requested():
+                self.service_preempt()
+                return 'preempted'
+                
+            if self.start_republish() == False:
+                return 'failure'
+            
+            rospy.loginfo("Taking a second look to the right.")
+            rospy.sleep(1.0)
+
+            if self.stop_republish() == False:
+                return 'failure'
+                
+            ptu_goal = PtuGotoGoal();
+            ptu_goal.pan = 0
+            ptu_goal.tilt = 29
+            ptu_goal.pan_vel = 20
+            ptu_goal.tilt_vel = 20
+            self.ptu_action_client.send_goal(ptu_goal)
+            self.ptu_action_client.wait_for_result()
+            
+            if self.preempt_requested():
+                self.service_preempt()
+                return 'preempted'
+                
+            if self.start_republish() == False:
+                return 'failure'
+            
+            rospy.loginfo("Taking a final look ahead.")
+            rospy.sleep(1.0)
+
+            if self.stop_republish() == False:
+                return 'failure'
+                
+            ptu_goal = PtuGotoGoal();
+            ptu_goal.pan = 0
+            ptu_goal.tilt = 0
+            ptu_goal.pan_vel = 20
+            ptu_goal.tilt_vel = 20
+            self.ptu_action_client.send_goal(ptu_goal)
+            #self.ptu_action_client.wait_for_result()
+
+            return 'succeded'
+        else:
+            return 'failure'
+        
+
+    def service_preempt(self):
+        #check if preemption is working
+        smach.State.service_preempt(self)
+
 class RecoverNavBacktrack(smach.State):
     def __init__(self):
         smach.State.__init__(self,
@@ -139,7 +254,7 @@ class RecoverNavBacktrack(smach.State):
             ptu_goal.pan_vel = 20
             ptu_goal.tilt_vel = 20
             self.ptu_action_client.send_goal(ptu_goal)
-            self.ptu_action_client.wait_for_result()
+            #self.ptu_action_client.wait_for_result()
 
             print "Reset PTU, move_base parameters and stopped republishing pointcloud."
             
