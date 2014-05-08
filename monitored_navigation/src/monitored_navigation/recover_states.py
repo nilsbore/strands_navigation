@@ -39,7 +39,24 @@ class RecoverNavBacktrack(smach.State):
         self.ptu_action_client = actionlib.SimpleActionClient('/SetPTUState', PtuGotoAction)
         self.move_base_action_client = actionlib.SimpleActionClient('/move_base', MoveBaseAction)
         self.move_base_reconfig_client = dynamic_reconfigure.client.Client('/move_base/DWAPlannerROS')
-               
+    
+    def stop_republish(self):
+        try:
+            republish_pointcloud = rospy.ServiceProxy('republish_pointcloud', RepublishPointcloud)
+            republish_pointcloud(False, '', '', 0.0)
+        except rospy.ServiceException, e:
+            rospy.logwarn("Couldn't stop republish pointcloud service, returning failure.")
+            return False
+        return True
+    
+    def start_republish(self):
+        try:
+            republish_pointcloud = rospy.ServiceProxy('republish_pointcloud', RepublishPointcloud)
+            republish_pointcloud(True, '/head_xtion/depth/points', '/move_base/head_subsampled', 0.05)
+        except rospy.ServiceException, e:
+            rospy.logwarn("Couldn't get republish pointcloud service, returning failure.")
+            return False
+        return True
                                                   
     def execute(self, userdata):
 
@@ -55,20 +72,6 @@ class RecoverNavBacktrack(smach.State):
                 return 'failure'
                 
             print "Got the previous position: ", meter_back.previous_pose.pose.position.x, ", ", meter_back.previous_pose.pose.position.y, ", ",  meter_back.previous_pose.pose.position.z
-                
-            try:
-                republish_pointcloud = rospy.ServiceProxy('republish_pointcloud', RepublishPointcloud)
-                republish_pointcloud(True, '/head_xtion/depth/points', '/move_base/head_subsampled', 0.05)
-            except rospy.ServiceException, e:
-                rospy.logwarn("Couldn't get republish pointcloud service, returning failure.")
-                return 'failure'
-                
-            print "Managed to republish pointcloud."
-                      
-            max_vel_x = rospy.get_param("/move_base/DWAPlannerROS/max_vel_x")
-            min_vel_x = rospy.get_param("/move_base/DWAPlannerROS/min_vel_x")
-            params = { 'max_vel_x' : -0.1, 'min_vel_x' : -0.2 }
-            config = self.move_base_reconfig_client.update_configuration(params)
             
             ptu_goal = PtuGotoGoal();
             ptu_goal.pan = 159
@@ -81,6 +84,16 @@ class RecoverNavBacktrack(smach.State):
             if self.preempt_requested():
                 self.service_preempt()
                 return 'preempted'
+                
+            if self.start_republish() == False:
+                return 'failure'
+                
+            print "Managed to republish pointcloud."
+            
+            max_vel_x = rospy.get_param("/move_base/DWAPlannerROS/max_vel_x")
+            min_vel_x = rospy.get_param("/move_base/DWAPlannerROS/min_vel_x")
+            params = { 'max_vel_x' : -0.1, 'min_vel_x' : -0.2 }
+            config = self.move_base_reconfig_client.update_configuration(params)
             
             move_goal = MoveBaseGoal()
             move_goal.target_pose.pose = meter_back.previous_pose.pose
@@ -89,20 +102,26 @@ class RecoverNavBacktrack(smach.State):
             rospy.sleep(rospy.Duration.from_sec(1))
             #print movegoal
             self.move_base_action_client.send_goal(move_goal)
-            self.move_base_action_client.wait_for_result()
+            status = self.move_base_action_client.get_state()
+            while status == GoalStatus.PENDING or status == GoalStatus.ACTIVE:   
+                status = self.move_base_action_client.get_state()
+                if self.preempt_requested():
+                    self.move_base_action_client.cancel_goal()
+                    self.service_preempt()
+                    self.stop_republish()
+                    return 'preempted'
+                self.move_base_action_client.wait_for_result(rospy.Duration(0.2))
+            #self.move_base_action_client.wait_for_result()
             
             if self.preempt_requested():
                 self.service_preempt()
+                self.stop_republish()
                 return 'preempted'
             
             params = { 'max_vel_x' : max_vel_x, 'min_vel_x' : min_vel_x }
             config = self.move_base_reconfig_client.update_configuration(params)
 
-            try:
-                republish_pointcloud = rospy.ServiceProxy('republish_pointcloud', RepublishPointcloud)
-                republish_pointcloud(False, '', '', 0.0)
-            except rospy.ServiceException, e:
-                rospy.logwarn("Couldn't stop republish pointcloud service, returning failure.")
+            if self.stop_republish() == False:
                 return 'failure'
             
             ptu_goal = PtuGotoGoal();
