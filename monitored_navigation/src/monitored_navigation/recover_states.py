@@ -9,6 +9,7 @@ from std_srvs.srv import Empty
 from scitos_msgs.msg import MotorStatus
 from geometry_msgs.msg import Twist
 
+from nav_msgs.msg import Path
 from move_base_msgs.msg import *
 import dynamic_reconfigure.client
 from scitos_ptu.msg import *
@@ -39,6 +40,15 @@ class RecoverNavBacktrack(smach.State):
         self.ptu_action_client = actionlib.SimpleActionClient('/SetPTUState', PtuGotoAction)
         self.move_base_action_client = actionlib.SimpleActionClient('/move_base', MoveBaseAction)
         self.move_base_reconfig_client = dynamic_reconfigure.client.Client('/move_base/DWAPlannerROS')
+        
+        self.global_plan=None
+        self.last_global_plan_time=None
+        
+        rospy.Subscriber("/move_base/NavfnROS/plan" , Path, self.global_planner_checker_cb)
+        
+    def global_planner_checker_cb(self, msg):
+        self.global_plan = msg
+        self.last_global_plan_time = rospy.get_rostime()
     
     def stop_republish(self):
         try:
@@ -138,16 +148,20 @@ class RecoverNavBacktrack(smach.State):
                 self.service_preempt()
                 return 'preempted'
                 
-            if self.move_base_action_client.get_state() != GoalStatus.SUCCEEDED: #set the previous goal again
-                return 'failure'
-            else:
+            if self.move_base_action_client.get_state() == GoalStatus.SUCCEEDED: #set the previous goal again
                 return 'succeeded'
+            elif status == GoalStatus.PREEMPTED:
+                return 'preempted'
+            else:
+                if (rospy.get_rostime()-self.last_global_plan_time < rospy.Duration.from_sec(1)) and (self.global_plan.poses == []):
+                    return 'failure' # 'global_plan_failure'
+                else:
+                    userdata.n_nav_fails = userdata.n_nav_fails + 1
+                    return 'succeeded' # 'local_plan_failure'
         else:
             return 'failure'
         
-      
-            
-    
+
     def service_preempt(self):
         #check if preemption is working
         smach.State.service_preempt(self)
