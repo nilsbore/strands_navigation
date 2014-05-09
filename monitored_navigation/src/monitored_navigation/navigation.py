@@ -105,7 +105,7 @@ class RecoverableNav(smach.StateMachine):
         self.userdata.n_nav_fails = 0
         self._nav_action = NavActionState()
         self._recover_nav_backtrack =  RecoverNavBacktrack()
-        self._recover_nav_help = RecoverNavHelp()     
+        self._recover_nav_help = RecoverNavHelp()
         with self:
             smach.StateMachine.add('NAVIGATION',
                                    self._nav_action, 
@@ -123,7 +123,7 @@ class RecoverableNav(smach.StateMachine):
                                    self._recover_nav_help,  
                                    transitions={'succeeded': 'NAVIGATION',
                                                 'failure': 'local_plan_failure',
-                                                'preempted':'preempted'} )                                         
+                                                'preempted':'preempted'} )
             
     def execute(self, userdata=smach.UserData()):
         outcome = smach.StateMachine.execute(self, userdata)   
