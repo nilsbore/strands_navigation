@@ -212,8 +212,8 @@ class RecoverNavBacktrack(smach.State):
             print "Got the previous position: ", meter_back.previous_pose.pose.position.x, ", ", meter_back.previous_pose.pose.position.y, ", ",  meter_back.previous_pose.pose.position.z
             
             ptu_goal = PtuGotoGoal();
-            ptu_goal.pan = 159
-            ptu_goal.tilt = 29
+            ptu_goal.pan = 179
+            ptu_goal.tilt = 30
             ptu_goal.pan_vel = 20
             ptu_goal.tilt_vel = 20
             self.ptu_action_client.send_goal(ptu_goal)
