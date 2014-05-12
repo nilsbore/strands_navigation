@@ -161,6 +161,8 @@ class RecoverNavBacktrack(smach.State):
         
         rospy.Subscriber("/move_base/NavfnROS/plan" , Path, self.global_planner_checker_cb)
         
+        self.BACKTRACK_TRIES = 0 # will turn into parameter later
+        
     def global_planner_checker_cb(self, msg):
         self.global_plan = msg
         self.last_global_plan_time = rospy.get_rostime()
@@ -199,7 +201,7 @@ class RecoverNavBacktrack(smach.State):
     def execute(self, userdata):
 
         print "Failures: ", userdata.n_nav_fails
-        if userdata.n_nav_fails < 2:
+        if userdata.n_nav_fails < self.BACKTRACK_TRIES:
             #back track in elegant fashion
             
             try:
