@@ -94,6 +94,8 @@ class BacktrackServer(object):
             return # 'failure'
             
         print "Got the previous position: ", meter_back.previous_pose.pose.position.x, ", ", meter_back.previous_pose.pose.position.y, ", ",  meter_back.previous_pose.pose.position.z
+
+        self.move_base_action_client.cancel_all_goals() # begin by cancelling others
         
         self.feedback.status = "Moving the PTU"
         self.server.publish_feedback(self.feedback)
@@ -125,26 +127,25 @@ class BacktrackServer(object):
         move_goal = MoveBaseGoal()
         move_goal.target_pose.pose = meter_back.previous_pose.pose
         move_goal.target_pose.header.frame_id = meter_back.previous_pose.header.frame_id
-        self.move_base_action_client.cancel_all_goals()
-        rospy.sleep(rospy.Duration.from_sec(1))
+        #rospy.sleep(rospy.Duration.from_sec(1))
         #print movegoal
         self.move_base_action_client.send_goal(move_goal)
         status = self.move_base_action_client.get_state()
         while status == GoalStatus.PENDING or status == GoalStatus.ACTIVE:   
             status = self.move_base_action_client.get_state()
             if self.server.is_preempt_requested():
-                self.service_preempt()
                 self.stop_republish()
                 self.reset_move_base_pars()
                 self.reset_ptu()
+                self.service_preempt()
                 return
             self.move_base_action_client.wait_for_result(rospy.Duration(0.2))
         
         self.reset_move_base_pars()
         
         if self.server.is_preempt_requested():
-            self.service_preempt()
             self.stop_republish()
+            self.service_preempt()
             return
 
         if self.stop_republish() == False:
