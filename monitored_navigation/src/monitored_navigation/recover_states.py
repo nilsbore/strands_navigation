@@ -14,7 +14,7 @@ from geometry_msgs.msg import Twist
 #from scitos_ptu.msg import *
 #from previous_positions_service.srv import PreviousPosition
 #from republish_pointcloud_service.srv import RepublishPointcloud
-#from actionlib_msgs.msg import *
+from actionlib_msgs.msg import *
 
 from backtrack_behaviour.msg import *
 
@@ -43,7 +43,7 @@ class RecoverNavBacktrack(smach.State):
                                                   
     def execute(self, userdata):
         print "Failures: ", userdata.n_nav_fails
-        if userdata.n_nav_fails >= self.BACKTRACK_TRIES:
+        if userdata.n_nav_fails > self.BACKTRACK_TRIES:
             return 'failure'
         
         backtrack_goal = BacktrackGoal();
@@ -53,8 +53,8 @@ class RecoverNavBacktrack(smach.State):
         status = self.backtrack_client.get_state()
         while status == GoalStatus.PENDING or status == GoalStatus.ACTIVE:
             status = self.backtrack_client.get_state()
-            if self.server.is_preempt_requested():
-                self.backtrack_client.set_preempted()
+            if self.preempt_requested():
+                self.backtrack_client.cancel_goal()
                 self.service_preempt()
                 return 'preempted'
             self.backtrack_client.wait_for_result(rospy.Duration(0.2))
