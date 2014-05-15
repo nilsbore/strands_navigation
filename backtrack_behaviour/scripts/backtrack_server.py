@@ -127,10 +127,12 @@ class BacktrackServer(object):
         
         if self.server.is_preempt_requested():
             self.reset_ptu()
+            pose_sub.unregister()
             self.service_preempt()
             return
             
         if self.start_republish() == False:
+            pose_sub.unregister()
             self.server.set_aborted()
             return # 'failure'
             
@@ -156,6 +158,7 @@ class BacktrackServer(object):
                 self.stop_republish()
                 self.reset_move_base_pars()
                 self.reset_ptu()
+                pose_sub.unregister()
                 self.service_preempt()
                 return
             if self.gone_too_far(goal.meters_back):
@@ -163,6 +166,7 @@ class BacktrackServer(object):
                 self.reset_move_base_pars()
                 self.reset_ptu()
                 self.move_base_action_client.cancel_all_goals()
+                pose_sub.unregister()
                 self.server.set_aborted()
                 return
             self.move_base_action_client.wait_for_result(rospy.Duration(0.2))
