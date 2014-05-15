@@ -108,6 +108,7 @@ class BacktrackServer(object):
         self.ptu_action_client.wait_for_result()
         
         if self.server.is_preempt_requested():
+            self.reset_ptu()
             self.service_preempt()
             return
             

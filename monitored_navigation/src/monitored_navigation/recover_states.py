@@ -39,7 +39,7 @@ class RecoverNavBacktrack(smach.State):
                              )
 
         self.backtrack_client = actionlib.SimpleActionClient('/do_backtrack', BacktrackAction)
-        self.BACKTRACK_TRIES = 0 #will turn into parameter later
+        self.BACKTRACK_TRIES = 1 #will turn into parameter later
                                                   
     def execute(self, userdata):
         print "Failures: ", userdata.n_nav_fails
