@@ -47,7 +47,7 @@ class RecoverNavBacktrack(smach.State):
             return 'failure'
         
         backtrack_goal = BacktrackGoal();
-        backtrack_goal.meters_back = 0.5;
+        backtrack_goal.meters_back = 0.8;
         #self.backtrack_client.cancel_all_goals()
         self.backtrack_client.send_goal(backtrack_goal)
         status = self.backtrack_client.get_state()

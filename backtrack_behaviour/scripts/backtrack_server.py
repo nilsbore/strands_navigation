@@ -18,6 +18,7 @@ from scitos_ptu.msg import *
 from previous_positions_service.srv import PreviousPosition
 from republish_pointcloud_service.srv import RepublishPointcloud
 from actionlib_msgs.msg import *
+from geometry_msgs.msg import Pose
 
 import actionlib
 
@@ -70,6 +71,21 @@ class BacktrackServer(object):
             return False
         return True
 
+    def pose_cb(self, msg):
+        self.x = msg.position.x
+        self.y = msg.position.y
+        if self.first_pose:
+            self.first_x = self.x
+            self.first_y = self.y
+            self.first_pose = False
+
+    def gone_too_far(self, meters_back):
+        xdiff = self.x - self.first_x
+        ydiff = self.y - self.first_y
+        if xdiff*xdiff + ydiff*ydiff > (meters_back+0.2)*(meters_back+0.2):
+            return True
+        return False
+
     def reset_ptu(self):
         ptu_goal = PtuGotoGoal();
         ptu_goal.pan = 0
@@ -96,6 +112,8 @@ class BacktrackServer(object):
         print "Got the previous position: ", meter_back.previous_pose.pose.position.x, ", ", meter_back.previous_pose.pose.position.y, ", ",  meter_back.previous_pose.pose.position.z
 
         self.move_base_action_client.cancel_all_goals() # begin by cancelling others
+        self.first_pose = True
+        pose_sub = rospy.Subscriber("/robot_pose" , Pose, self.pose_cb)
         
         self.feedback.status = "Moving the PTU"
         self.server.publish_feedback(self.feedback)
@@ -140,9 +158,17 @@ class BacktrackServer(object):
                 self.reset_ptu()
                 self.service_preempt()
                 return
+            if self.gone_too_far(goal.meters_back):
+                self.stop_republish()
+                self.reset_move_base_pars()
+                self.reset_ptu()
+                self.move_base_action_client.cancel_all_goals()
+                self.server.set_aborted()
+                return
             self.move_base_action_client.wait_for_result(rospy.Duration(0.2))
         
         self.reset_move_base_pars()
+        pose_sub.unregister()
         
         if self.server.is_preempt_requested():
             self.stop_republish()
