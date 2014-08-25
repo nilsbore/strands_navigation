@@ -117,12 +117,12 @@ class RecoverableNav(smach.StateMachine):
             smach.StateMachine.add('NAVIGATION',
                                    self._nav_action, 
                                    transitions={'succeeded': 'succeeded',
-                                                'local_plan_failure':  'RECOVER_NAVIGATION_BACKTRACK',
+                                                'local_plan_failure':  'RECOVER_REOBSERVE_OBSTACLE',
                                                 'global_plan_failure':'global_plan_failure',
                                                 'preempted': 'preempted'}
                                    )
-            smach.StateMachine.add('RECOVER_NAVIGATION_BACKTRACK',
-                                   self._recover_nav_backtrack,  
+            smach.StateMachine.add('RECOVER_REOBSERVE_OBSTACLE',
+                                   self._recover_reobserve_obstacle,  
                                    transitions={'succeeded': 'NAVIGATION',
                                                 'failure': 'RECOVER_NAVIGATION_HELP',
                                                 'preempted':'preempted'})
