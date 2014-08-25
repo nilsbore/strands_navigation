@@ -26,11 +26,47 @@ from strands_navigation_msgs.msg import MonitoredNavEvent
 from geometry_msgs.msg import Pose
 from actionlib_msgs.msg import GoalID, GoalStatusArray
 
-
+from scitos_2d_navigation.msg import *
 
 # this file has the recovery states that will be used when some failures are
 # detected. There is a recovery behaviour for move_base and another for when the
 # bumper is pressed
+
+
+class RecoverNavReobserveObstacle(smach.State):
+    def __init__(self):
+        smach.State.__init__(self,
+                             outcomes=['succeeded', 'failure', 'preempted'],
+                             input_keys=['goal','n_nav_fails'],
+                             output_keys=['goal','n_nav_fails'],
+                             )
+
+        self.reobserve_client = actionlib.SimpleActionClient('/static_planner', UnleashStaticPlannerAction)
+        self.OBSERVATION_TRIES = 3 #will turn into parameter later
+                                                  
+    def execute(self, userdata):
+        print "Failures: ", userdata.n_nav_fails
+        if userdata.n_nav_fails > self.OBSERVATION_TRIES:
+            return 'failure'
+        
+        reobserve_goal = UnleashStaticPlannerGoal();
+        reobserve_goal.execute = True;
+        self.backtrack_client.send_goal(reobserve_goal)
+        status = self.reobserve_client.get_state()
+        while status == GoalStatus.PENDING or status == GoalStatus.ACTIVE:
+            status = self.reobserve_client.get_state()
+            if self.preempt_requested():
+                self.reobserve_client.cancel_goal()
+                self.service_preempt()
+                return 'preempted'
+            self.reobserve_client.wait_for_result(rospy.Duration(0.2))
+        if status == GoalStatus.SUCCEEDED:
+            return 'succeeded'
+        return 'failure'
+    
+    def service_preempt(self):
+        #check if preemption is working
+        smach.State.service_preempt(self)
 
 class RecoverNavBacktrack(smach.State):
     def __init__(self):
