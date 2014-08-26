@@ -44,20 +44,22 @@ class RecoverNavReobserveObstacle(smach.State):
         self.OBSERVATION_TRIES = 3 #will turn into parameter later
                                                   
     def execute(self, userdata):
+        rospy.logwarn("TRYING THE RE-OBSERVATION AGAIN.")
         print "Failures: ", userdata.n_nav_fails
         if userdata.n_nav_fails > self.OBSERVATION_TRIES:
             return 'failure'
         
         reobserve_goal = UnleashStaticPlannerGoal();
         reobserve_goal.execute = True;
-        self.backtrack_client.send_goal(reobserve_goal)
+        self.reobserve_client.send_goal(reobserve_goal)
         status = self.reobserve_client.get_state()
         while status == GoalStatus.PENDING or status == GoalStatus.ACTIVE:
             status = self.reobserve_client.get_state()
             if self.preempt_requested():
-                self.reobserve_client.cancel_goal()
-                self.service_preempt()
-                return 'preempted'
+                #self.reobserve_client.cancel_goal()
+                #self.service_preempt()
+                #return 'preempted'
+                print "Preempted"
             self.reobserve_client.wait_for_result(rospy.Duration(0.2))
         if status == GoalStatus.SUCCEEDED:
             return 'succeeded'

@@ -13,7 +13,7 @@ import strands_navigation_msgs.msg
 from nav_msgs.msg import Path
 
 from monitor_states import BumperMonitor, StuckOnCarpetMonitor, NavPreemptMonitor
-from recover_states import RecoverNavHelp, RecoverNavBacktrack,  RecoverBumper, RecoverStuckOnCarpet
+from recover_states import RecoverNavHelp, RecoverNavBacktrack,  RecoverBumper, RecoverStuckOnCarpet, RecoverNavReobserveObstacle
 
 #from logger import Loggable
 
@@ -111,14 +111,14 @@ class RecoverableNav(smach.StateMachine):
 
         self.userdata.n_nav_fails = 0
         self._nav_action = NavActionState()
-        self._recover_nav_backtrack =  RecoverNavBacktrack()
+        self._recover_reobserve_obstacle = RecoverNavReobserveObstacle()
         self._recover_nav_help = RecoverNavHelp()
         with self:
             smach.StateMachine.add('NAVIGATION',
                                    self._nav_action, 
                                    transitions={'succeeded': 'succeeded',
-                                                'local_plan_failure':  'RECOVER_REOBSERVE_OBSTACLE',
-                                                'global_plan_failure':'global_plan_failure',
+                                                'local_plan_failure':  'RECOVER_NAVIGATION_HELP',
+                                                'global_plan_failure': 'RECOVER_REOBSERVE_OBSTACLE',
                                                 'preempted': 'preempted'}
                                    )
             smach.StateMachine.add('RECOVER_REOBSERVE_OBSTACLE',
