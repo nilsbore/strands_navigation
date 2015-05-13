@@ -5,9 +5,11 @@
 
     <arg name="config_file" default="$(find monitored_navigation)/config/pause_config.yaml"/>
 
-    <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER)" user="$(arg user)" default="true"/>    
-    
-    <node name="monitored_nav" pkg="monitored_navigation" type="monitored_nav.py" output="screen" args="$(arg config_file)" ></node>
+    <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER)" user="$(arg user)" default="true"/>
+
+    <node name="monitored_nav" pkg="monitored_navigation" type="monitored_nav.py" output="screen" args="$(arg config_file)" >
+        <arg name="wait_reset_bumper_duration" value="10.0"/>
+    </node>
 
 
 </launch>
